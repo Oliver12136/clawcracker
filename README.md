@@ -1,33 +1,110 @@
 # ClawCracker
 
-**A local-first, user-owned GUI control plane for personal AI agents.**
+**A task workspace for ordinary users to control personal AI agents beyond chat
+and CLI.**
 
-Most agent workflows today are trapped inside text-only chat threads or CLI
-streams. This makes powerful tools hard to supervise: users cannot easily see
-active tasks, understand what an agent is doing, inspect tool usage, review
-permissions, or build a clear mental model of the whole system.
+ClawCracker is a local-first, user-friendly task workspace for OpenClaw. It is
+an experience layer for everyday users, not a developer dashboard, log viewer,
+or admin console.
 
-ClawCracker explores what a **user-owned interface** for agents could be.
+OpenClaw is powerful because it can route messages across channels, agents,
+sessions, subagents, and tools. But for everyday users, this structure is often
+exposed through chat commands, CLI streams, session keys, and agent IDs.
+ClawCracker translates that complexity into a visual workspace centered on
+tasks.
 
-Instead of treating agents as invisible text responders, it presents them as
-observable and controllable execution entities: sessions, tasks, tool calls,
-permissions, artifacts, risks, and audit history.
+Instead of asking users to manage agents through command syntax, ClawCracker
+lets them start a task, choose or reuse the right context, follow what is
+happening, steer the agent while it runs, review risky actions, and save
+successful work as reusable routines.
 
-The goal is not to remove text interaction, but to go beyond it: giving users an
-interface they own, understand, and control, where agent work becomes
-transparent, interruptible, reviewable, and accountable.
+Text interaction remains useful for expressing intent, but real agent work needs
+more than a text box. It needs structure, progress, decisions, control, and
+reuse.
+
+ClawCracker explores how personal AI agents can become not only more
+transparent, but more usable, efficient, teachable, and accountable for ordinary
+users.
+
+## Vision
+
+Most personal AI agents are still controlled through text-only chat or
+command-line interfaces. This makes them hard to use for ordinary users,
+especially when tasks involve multiple agents, sessions, tools, approvals, or
+background subagents.
+
+ClawCracker is built around a different mental model:
+
+- Users think in tasks, not session keys.
+- Users follow progress, not raw logs.
+- Users make decisions, not command-line corrections.
+- Users reuse routines, not repeated prompts.
+- Users stay in control, without needing to understand the full agent
+  infrastructure upfront.
+
+Ordinary users should not have to think in agents, sessions, routes, and command
+syntax. They should be able to think in tasks, progress, decisions, and
+routines.
+
+```text
+OpenClaw technical model:
+Gateway -> Route -> Agent -> Session -> Subagent -> Tool call
+
+ClawCracker user model:
+Task -> Plan -> Progress -> Decision -> Result -> Routine
+```
+
+The goal is not to hide OpenClaw's power, but to make it approachable.
+ClawCracker brings OpenClaw's agent system into a visual task workspace where
+automation is easier to start, easier to guide, easier to inspect, and easier to
+trust.
+
+The interface should reveal technical detail progressively. Ordinary users begin
+with tasks, progress, decisions, and routines. When needed, they can expand into
+agents, sessions, tool calls, permissions, artifacts, risks, and raw logs.
+
+## Design Principles
+
+### Task first, infrastructure second
+
+Everyday users should start from what they want to get done, not from agent IDs,
+session keys, routes, or command syntax.
+
+### Text for intent, GUI for control
+
+Text is useful for describing a goal. A visual interface is better for choosing
+context, checking progress, reviewing decisions, and controlling execution.
+
+### Make background work visible
+
+When an agent or subagent is running, it should appear as a visible task with
+status, progress, logs, and controls.
+
+### Steer, don't restart
+
+Users should be able to guide an agent while it is working, instead of stopping
+everything and rewriting a prompt from scratch.
+
+### Review before risk
+
+Actions such as sending messages, deleting files, modifying data, or using
+sensitive tools should be surfaced clearly and require user review.
+
+### Reuse successful work
+
+Good one-off tasks should be easy to turn into reusable routines.
 
 ## Current Progress
 
 This project is currently an experimental prototype. The present milestone is to
-validate whether the experience can functionally "put a shell around the
-lobster": wrapping OpenClaw-style agent behavior in a more visible, guided, and
-user-owned interface while improving the overall interaction experience.
+validate whether OpenClaw-style agent work can be wrapped in an ordinary-user
+task experience: more visible, guided, steerable, reviewable, and reusable than
+a raw chat thread or CLI stream.
 
 The implementation is still text-dialogue based. It does not yet include a
 configured physical machine, robot, or hardware control layer. The current work
-focuses on the local desktop app shell, the OpenClaw bridge, observable session
-UI concepts, and safe local-first development defaults.
+focuses on the local desktop app shell, the OpenClaw bridge, task-centered UI
+concepts, and safe local-first development defaults.
 
 ## Open-Source Notes
 

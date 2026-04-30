@@ -1,7 +1,7 @@
 {
   "name": "clawcracker",
   "version": "0.1.0",
-  "description": "ClawCracker, an open-source local app shell for OpenClaw.",
+  "description": "A user-friendly GUI workspace that turns OpenClaw's chat/CLI-based agent control into task-based, steerable, and reusable workflows.",
   "productName": "ClawCracker",
   "license": "MIT",
   "type": "module",
