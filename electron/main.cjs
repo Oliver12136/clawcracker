@@ -333,8 +333,8 @@ async function gatewayHealth(timeoutMs = 5000) {
     gatewayState = {
       running: true,
       starting: false,
-      ready: gatewayState.ready || !gatewayProcess,
-      message: "Gateway reachable",
+      ready: true,
+      message: "Gateway ready",
       detail: parseJson(result.stdout) ?? result.stdout.trim(),
     };
   } catch (error) {
@@ -543,7 +543,7 @@ async function waitForGatewayReady(maxWaitMs = 30000) {
 }
 
 function noteGatewayReady(text) {
-  if (!/\[gateway\]\s+ready\b/i.test(text)) {
+  if (!/(?:\[gateway\]\s+)?gateway\s+ready\b/i.test(text)) {
     return;
   }
 
