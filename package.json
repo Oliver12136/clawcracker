@@ -1,0 +1,44 @@
+{
+  "name": "clawcracker",
+  "version": "0.1.0",
+  "description": "ClawCracker, an open-source local app shell for OpenClaw.",
+  "productName": "ClawCracker",
+  "license": "MIT",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
+    "app:dev": "node scripts/start-desktop-dev.mjs",
+    "app": "npm run build && node scripts/start-desktop.mjs",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "figma:setup": "node scripts/setup-figma-token.mjs",
+    "figma:pull": "node scripts/pull-figma-node.mjs",
+    "openclaw": "node scripts/run-openclaw.mjs",
+    "openclaw:setup": "node scripts/run-openclaw.mjs onboard --non-interactive --accept-risk --mode local --flow manual --auth-choice skip --gateway-bind loopback --gateway-port 18789 --workspace ./.openclaw/workspace --skip-daemon --skip-channels --skip-search --skip-skills --skip-ui --skip-health --json",
+    "openclaw:configure": "node scripts/run-openclaw.mjs configure",
+    "openclaw:config:file": "node scripts/run-openclaw.mjs config file",
+    "openclaw:config:validate": "node scripts/run-openclaw.mjs config validate",
+    "openclaw:doctor": "node scripts/run-openclaw.mjs doctor --non-interactive",
+    "openclaw:gateway": "node scripts/run-openclaw.mjs gateway run --port 18789 --bind loopback --verbose",
+    "openclaw:dashboard": "node scripts/run-openclaw.mjs dashboard",
+    "check": "npm run typecheck && npm run build && npm run openclaw:config:validate && npm run openclaw:doctor"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "electron": "^41.3.0",
+    "openclaw": "2026.4.26",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10"
+  },
+  "dependencies": {
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  }
+}
