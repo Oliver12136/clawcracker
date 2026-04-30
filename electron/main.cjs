@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, nativeImage, shell } = require("electron");
 const { execFile, spawn } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -12,7 +12,10 @@ const openclawBin = path.join(
   isWindows ? "openclaw.cmd" : "openclaw",
 );
 const appDisplayName = "ClawCracker";
-const appIconPath = path.join(projectRoot, "ClawCracker.png");
+const appDesktopFileName = "ClawCracker.desktop";
+const appLinuxClass = "ClawCracker";
+const appIconPath = path.join(projectRoot, "ClawCracker-icon.png");
+const appIcon = nativeImage.createFromPath(appIconPath);
 
 loadLocalEnv();
 
@@ -24,6 +27,11 @@ if (process.platform === "win32") {
   app.setAppUserModelId("ai.openclaw.clawcracker");
 }
 
+if (process.platform === "linux") {
+  app.commandLine.appendSwitch("class", appLinuxClass);
+  app.setDesktopName(appDesktopFileName);
+}
+
 let mainWindow;
 let gatewayProcess;
 let authLoginProcess;
@@ -32,10 +40,13 @@ let didLogExternalCliOauthBootstrap = false;
 let gatewayState = {
   running: false,
   starting: false,
+  ready: false,
   message: "Gateway idle",
 };
 
 function createWindow() {
+  ensureLinuxDesktopEntry();
+
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 1024,
@@ -43,7 +54,7 @@ function createWindow() {
     minHeight: 684,
     backgroundColor: "#030304",
     frame: false,
-    icon: appIconPath,
+    icon: appIcon.isEmpty() ? appIconPath : appIcon,
     show: false,
     title: appDisplayName,
     webPreferences: {
@@ -54,6 +65,7 @@ function createWindow() {
   });
 
   mainWindow.once("ready-to-show", () => {
+    mainWindow.setTitle(appDisplayName);
     mainWindow.show();
   });
 
@@ -63,6 +75,53 @@ function createWindow() {
     mainWindow.loadURL(devUrl);
   } else {
     mainWindow.loadFile(path.join(projectRoot, "dist", "index.html"));
+  }
+}
+
+function ensureLinuxDesktopEntry() {
+  if (process.platform !== "linux") {
+    return;
+  }
+
+  const home = process.env.HOME;
+
+  if (!home) {
+    return;
+  }
+
+  const applicationsDir = path.join(home, ".local", "share", "applications");
+  const desktopPath = path.join(applicationsDir, appDesktopFileName);
+  const execCommand = `${desktopExecQuote(process.execPath)} ${desktopExecQuote(projectRoot)}`;
+  const content = [
+    "[Desktop Entry]",
+    "Type=Application",
+    `Name=${appDisplayName}`,
+    `StartupWMClass=${appLinuxClass}`,
+    `Exec=${execCommand}`,
+    `Icon=${appIconPath}`,
+    "Terminal=false",
+    "Categories=Development;Utility;",
+    "",
+  ].join("\n");
+
+  try {
+    fs.mkdirSync(applicationsDir, { recursive: true });
+
+    let previous = "";
+
+    try {
+      previous = fs.readFileSync(desktopPath, "utf8");
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+    }
+
+    if (previous !== content) {
+      fs.writeFileSync(desktopPath, content, "utf8");
+    }
+  } catch (error) {
+    logGateway(`Could not install desktop entry for app identity: ${error.message}`);
   }
 }
 
@@ -274,6 +333,7 @@ async function gatewayHealth(timeoutMs = 5000) {
     gatewayState = {
       running: true,
       starting: false,
+      ready: gatewayState.ready || !gatewayProcess,
       message: "Gateway reachable",
       detail: parseJson(result.stdout) ?? result.stdout.trim(),
     };
@@ -281,6 +341,7 @@ async function gatewayHealth(timeoutMs = 5000) {
     gatewayState = {
       running: Boolean(gatewayProcess),
       starting: Boolean(gatewayProcess),
+      ready: false,
       message: gatewayProcess ? "Gateway starting" : "Gateway offline",
       detail: (error.stderr || error.stdout || error.message || "").trim(),
     };
@@ -303,6 +364,7 @@ async function startGateway() {
   gatewayState = {
     running: false,
     starting: true,
+    ready: false,
     message: "Starting local OpenClaw gateway",
   };
   emit("openui:gateway-status", gatewayState);
@@ -332,11 +394,15 @@ async function startGateway() {
   );
 
   gatewayProcess.stdout.on("data", (chunk) => {
-    logGatewayOutput(chunk.toString("utf8"));
+    const text = chunk.toString("utf8");
+    noteGatewayReady(text);
+    logGatewayOutput(text);
   });
 
   gatewayProcess.stderr.on("data", (chunk) => {
-    logGatewayOutput(chunk.toString("utf8"));
+    const text = chunk.toString("utf8");
+    noteGatewayReady(text);
+    logGatewayOutput(text);
   });
 
   gatewayProcess.once("exit", (code, signal) => {
@@ -344,6 +410,7 @@ async function startGateway() {
     gatewayState = {
       running: false,
       starting: false,
+      ready: false,
       message: `Gateway stopped (${signal ?? code ?? "unknown"})`,
     };
     emit("openui:gateway-status", gatewayState);
@@ -364,6 +431,7 @@ async function stopGateway() {
   gatewayState = {
     running: false,
     starting: false,
+    ready: false,
     message: "Gateway stopped",
   };
   emit("openui:gateway-status", gatewayState);
@@ -457,16 +525,36 @@ async function waitForGatewayReady(maxWaitMs = 30000) {
 
   while (Date.now() - started < maxWaitMs) {
     last = await gatewayHealth(2500);
-    emit("openui:gateway-status", last);
 
-    if (last.running) {
+    if (last.running && last.ready) {
+      emit("openui:gateway-status", last);
       return last;
     }
 
+    emit("openui:gateway-status", {
+      ...last,
+      starting: Boolean(gatewayProcess),
+      message: gatewayProcess ? "Gateway starting" : last.message,
+    });
     await wait(750);
   }
 
   return last;
+}
+
+function noteGatewayReady(text) {
+  if (!/\[gateway\]\s+ready\b/i.test(text)) {
+    return;
+  }
+
+  gatewayState = {
+    ...gatewayState,
+    running: true,
+    starting: false,
+    ready: true,
+    message: "Gateway ready",
+  };
+  emit("openui:gateway-status", gatewayState);
 }
 
 function openAuthUrls(text, openedUrls) {
@@ -600,6 +688,10 @@ function findExecutable(name) {
 
 function shellQuote(value) {
   return `'${String(value).replace(/'/g, "'\\''")}'`;
+}
+
+function desktopExecQuote(value) {
+  return `"${String(value).replace(/["\\`$]/g, "\\$&")}"`;
 }
 
 function loadLocalEnv() {
@@ -795,19 +887,18 @@ ipcMain.handle("openui:agent-send", async (_event, message) => {
     };
   }
 
-  await startGateway();
+  const gateway = await startGateway();
+
+  if (!gateway.ready) {
+    return {
+      ok: false,
+      message: gateway.message || "Gateway did not become ready in time.",
+      data: gateway,
+    };
+  }
 
   try {
-    const args = ["infer", "model", "run", "--gateway", "--prompt", body, "--json"];
-
-    if (openuiModelId) {
-      args.splice(3, 0, "--model", openuiModelId);
-    }
-
-    const result = await runOpenClaw(
-      args,
-      { timeout: 180000 },
-    );
+    const result = await runAgentOnce(body);
     const data = parseJson(result.stdout);
     const replyText = extractOpenClawReplyText(data);
 
@@ -819,6 +910,29 @@ ipcMain.handle("openui:agent-send", async (_event, message) => {
       message: replyText,
     };
   } catch (error) {
+    if (isGatewayConnectError(error)) {
+      logGateway("Gateway connection closed during request; waiting for readiness and retrying once.");
+      const retryGateway = await waitForGatewayReady(30000);
+
+      if (retryGateway.ready) {
+        try {
+          const result = await runAgentOnce(body);
+          const data = parseJson(result.stdout);
+          const replyText = extractOpenClawReplyText(data);
+
+          return {
+            ok: true,
+            data: attachReplyText(data, replyText),
+            stdout: result.stdout,
+            stderr: result.stderr,
+            message: replyText,
+          };
+        } catch (retryError) {
+          error = retryError;
+        }
+      }
+    }
+
     return {
       ok: false,
       code: error.code,
@@ -828,6 +942,26 @@ ipcMain.handle("openui:agent-send", async (_event, message) => {
     };
   }
 });
+
+function runAgentOnce(body) {
+  const args = ["infer", "model", "run", "--gateway", "--prompt", body, "--json"];
+
+  if (openuiModelId) {
+    args.splice(3, 0, "--model", openuiModelId);
+  }
+
+  return runOpenClaw(args, { timeout: 180000 });
+}
+
+function isGatewayConnectError(error) {
+  const text = [
+    error?.message,
+    error?.stdout,
+    error?.stderr,
+  ].filter(Boolean).join("\n");
+
+  return /gateway (?:connect failed|closed)|handshake timeout|closed before connect/i.test(text);
+}
 
 app.whenReady().then(() => {
   createWindow();

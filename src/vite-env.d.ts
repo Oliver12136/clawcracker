@@ -11,6 +11,7 @@ interface ImportMeta {
 type GatewayState = {
   running: boolean;
   starting: boolean;
+  ready?: boolean;
   message: string;
   detail?: unknown;
 };
