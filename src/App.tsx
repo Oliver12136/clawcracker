@@ -115,6 +115,18 @@ function App() {
     appendDebug(`Models status: ${modelStatusLabel(result)}`);
   }
 
+  async function pingKernel() {
+    const desktop = window.openuiDesktop;
+
+    if (!desktop) {
+      return;
+    }
+
+    const result = await desktop.kernelPing();
+    setLastResult(result);
+    appendDebug(result.message ?? (result.ok ? "Core ping completed" : "Core ping failed"));
+  }
+
   async function startOpenAiLogin() {
     const desktop = window.openuiDesktop;
 
@@ -379,6 +391,9 @@ function App() {
               </button>
               <button onClick={() => refreshModelStatus()} type="button">
                 refresh
+              </button>
+              <button onClick={pingKernel} type="button">
+                ping core
               </button>
             </div>
             {authUrl || authDeviceCode ? (

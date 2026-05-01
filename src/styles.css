@@ -248,7 +248,7 @@ input {
   display: flex;
   overflow: auto;
   flex-direction: column;
-  gap: 9.082031cqh;
+  gap: 2.34375cqh;
   padding: 0;
   scrollbar-color: #35353a transparent;
   scrollbar-width: thin;
@@ -256,26 +256,28 @@ input {
 
 .chat-row {
   display: flex;
-  align-items: center;
-  height: 7.324219cqh;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 7.324219cqh;
   gap: 1.388889cqw;
   flex: 0 0 auto;
 }
 
 .chat-row.assistant {
-  width: 64.69635cqw;
+  justify-content: flex-start;
   align-self: flex-start;
 }
 
 .chat-row.user {
-  width: 64.236111cqw;
+  justify-content: flex-end;
   align-self: flex-end;
 }
 
 .chat-message-frame {
   display: flex;
-  width: 61.736111cqw;
-  height: 7.324219cqh;
+  width: auto;
+  max-width: 61.736111cqw;
+  min-height: 7.324219cqh;
   flex: 0 0 auto;
   flex-direction: column;
   align-items: center;
@@ -284,36 +286,39 @@ input {
 .chat-message-box {
   position: relative;
   display: flex;
-  width: 100%;
-  height: 7.324219cqh;
+  width: auto;
+  max-width: 100%;
+  min-height: 7.324219cqh;
   flex: 0 0 auto;
-  align-items: center;
-  padding: 2.148438cqh 0 2.148438cqh 2.083333cqw;
+  align-items: flex-start;
+  padding: 2.148438cqh 2.083333cqw;
   background: #1c1c1f;
 }
 
 .chat-message-content {
   display: flex;
-  width: 58.263889cqw;
-  height: 3.027344cqh;
+  width: auto;
+  max-width: 58.263889cqw;
+  min-height: 3.027344cqh;
   flex: 0 0 auto;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .chat-message-text {
   position: relative;
-  flex: 0 0 auto;
-  width: 58.263889cqw;
-  height: 3.027344cqh;
+  flex: 1 1 auto;
+  width: auto;
+  max-width: 58.263889cqw;
+  min-height: 3.027344cqh;
   margin: 0;
-  overflow: hidden;
+  overflow: visible;
   color: #ffffff;
   font-family: "Atkinson Hyperlegible Next", sans-serif;
   font-size: 1.666667cqw;
   font-weight: 400;
-  line-height: normal;
-  text-overflow: clip;
-  white-space: nowrap;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .chat-row.error .chat-message-text {
@@ -325,6 +330,7 @@ input {
   width: 1.571348cqw;
   height: 2.209709cqh;
   flex: 0 0 auto;
+  margin-top: 2.557292cqh;
   place-items: center;
 }
 
@@ -341,6 +347,7 @@ input {
   width: 1.111111cqw;
   height: 1.5625cqh;
   flex: 0 0 auto;
+  margin-top: 2.929688cqh;
   background: #ffffff;
 }
 
@@ -507,6 +514,8 @@ input {
 
 .model-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 

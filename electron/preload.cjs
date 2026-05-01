@@ -28,6 +28,9 @@ contextBridge.exposeInMainWorld("openuiDesktop", {
   modelsStatus() {
     return ipcRenderer.invoke("openui:models-status");
   },
+  kernelPing() {
+    return ipcRenderer.invoke("openui:kernel-ping");
+  },
   auth: {
     loginOpenAI() {
       return ipcRenderer.invoke("openui:auth-login-openai");

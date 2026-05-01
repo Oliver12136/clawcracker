@@ -41,6 +41,7 @@ interface Window {
       onStatus(callback: (payload: GatewayState) => void): () => void;
     };
     modelsStatus(): Promise<OpenUiResult>;
+    kernelPing(): Promise<OpenUiResult>;
     auth: {
       loginOpenAI(): Promise<OpenUiResult>;
       cancel(): Promise<OpenUiResult>;

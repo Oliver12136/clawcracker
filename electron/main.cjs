@@ -884,6 +884,34 @@ ipcMain.handle("openui:models-status", async () => {
   }
 });
 
+ipcMain.handle("openui:kernel-ping", async () => {
+  const started = Date.now();
+
+  try {
+    const gateway = await startGateway();
+    const portsReady = await areGatewayPortsOpen();
+    const durationMs = Date.now() - started;
+
+    return {
+      ok: Boolean(gateway.ready || portsReady),
+      data: {
+        durationMs,
+        gateway,
+        portsReady,
+      },
+      message: `Core ping ${durationMs}ms`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      code: error.code,
+      stdout: error.stdout,
+      stderr: error.stderr,
+      message: error.message,
+    };
+  }
+});
+
 ipcMain.handle("openui:auth-login-openai", async () => {
   if (authLoginProcess) {
     return {
