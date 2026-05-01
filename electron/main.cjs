@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, nativeImage, shell } = require("electron");
 const { execFile, spawn } = require("node:child_process");
 const fs = require("node:fs");
+const net = require("node:net");
 const path = require("node:path");
 
 const projectRoot = path.resolve(__dirname, "..");
@@ -14,6 +15,7 @@ const openclawBin = path.join(
 const appDisplayName = "ClawCracker";
 const appDesktopFileName = "ClawCracker.desktop";
 const appLinuxClass = "ClawCracker";
+const appLinuxIconName = "clawcracker";
 const appIconPath = path.join(projectRoot, "ClawCracker-icon.png");
 const appIcon = nativeImage.createFromPath(appIconPath);
 
@@ -34,6 +36,7 @@ if (process.platform === "linux") {
 
 let mainWindow;
 let gatewayProcess;
+let gatewayStartPromise;
 let authLoginProcess;
 let authLoginRunId = 0;
 let didLogExternalCliOauthBootstrap = false;
@@ -90,6 +93,8 @@ function ensureLinuxDesktopEntry() {
   }
 
   const applicationsDir = path.join(home, ".local", "share", "applications");
+  const iconThemeDir = path.join(home, ".local", "share", "icons", "hicolor", "512x512", "apps");
+  const iconThemePath = path.join(iconThemeDir, `${appLinuxIconName}.png`);
   const desktopPath = path.join(applicationsDir, appDesktopFileName);
   const execCommand = `${desktopExecQuote(process.execPath)} ${desktopExecQuote(projectRoot)}`;
   const content = [
@@ -98,7 +103,7 @@ function ensureLinuxDesktopEntry() {
     `Name=${appDisplayName}`,
     `StartupWMClass=${appLinuxClass}`,
     `Exec=${execCommand}`,
-    `Icon=${appIconPath}`,
+    `Icon=${appLinuxIconName}`,
     "Terminal=false",
     "Categories=Development;Utility;",
     "",
@@ -106,6 +111,8 @@ function ensureLinuxDesktopEntry() {
 
   try {
     fs.mkdirSync(applicationsDir, { recursive: true });
+    fs.mkdirSync(iconThemeDir, { recursive: true });
+    fs.copyFileSync(appIconPath, iconThemePath);
 
     let previous = "";
 
@@ -338,11 +345,13 @@ async function gatewayHealth(timeoutMs = 5000) {
       detail: parseJson(result.stdout) ?? result.stdout.trim(),
     };
   } catch (error) {
+    const wasReady = gatewayState.ready;
+
     gatewayState = {
-      running: Boolean(gatewayProcess),
-      starting: Boolean(gatewayProcess),
-      ready: false,
-      message: gatewayProcess ? "Gateway starting" : "Gateway offline",
+      running: wasReady || Boolean(gatewayProcess),
+      starting: Boolean(gatewayProcess) && !wasReady,
+      ready: wasReady,
+      message: wasReady ? "Gateway ready" : gatewayProcess ? "Gateway starting" : "Gateway offline",
       detail: (error.stderr || error.stdout || error.message || "").trim(),
     };
   }
@@ -351,14 +360,28 @@ async function gatewayHealth(timeoutMs = 5000) {
 }
 
 async function startGateway() {
-  const health = await gatewayHealth(1200);
-
-  if (health.running) {
-    return health;
+  if (gatewayStartPromise) {
+    return gatewayStartPromise;
   }
 
+  gatewayStartPromise = startGatewayInternal().finally(() => {
+    gatewayStartPromise = undefined;
+  });
+
+  return gatewayStartPromise;
+}
+
+async function startGatewayInternal() {
   if (gatewayProcess) {
     return waitForGatewayReady();
+  }
+
+  if (await isTcpPortOpen("127.0.0.1", 18789, 300)) {
+    const health = await gatewayHealth(8000);
+
+    if (health.ready) {
+      return health;
+    }
   }
 
   gatewayState = {
@@ -416,7 +439,6 @@ async function startGateway() {
     emit("openui:gateway-status", gatewayState);
   });
 
-  await wait(1500);
   return waitForGatewayReady();
 }
 
@@ -524,22 +546,23 @@ async function waitForGatewayReady(maxWaitMs = 30000) {
   let last = gatewayState;
 
   while (Date.now() - started < maxWaitMs) {
-    last = await gatewayHealth(2500);
-
-    if (last.running && last.ready) {
+    if (gatewayState.ready) {
+      last = gatewayState;
       emit("openui:gateway-status", last);
       return last;
     }
 
     emit("openui:gateway-status", {
-      ...last,
+      ...gatewayState,
+      running: Boolean(gatewayProcess),
       starting: Boolean(gatewayProcess),
-      message: gatewayProcess ? "Gateway starting" : last.message,
+      ready: false,
+      message: gatewayProcess ? "Gateway starting" : gatewayState.message,
     });
     await wait(750);
   }
 
-  return last;
+  return gatewayState;
 }
 
 function noteGatewayReady(text) {
@@ -555,6 +578,28 @@ function noteGatewayReady(text) {
     message: "Gateway ready",
   };
   emit("openui:gateway-status", gatewayState);
+}
+
+function isTcpPortOpen(host, port, timeoutMs = 300) {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host, port });
+    let settled = false;
+
+    const finish = (value) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      socket.destroy();
+      resolve(value);
+    };
+
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", () => finish(true));
+    socket.once("timeout", () => finish(false));
+    socket.once("error", () => finish(false));
+  });
 }
 
 function openAuthUrls(text, openedUrls) {
@@ -783,7 +828,7 @@ ipcMain.handle("openui:window-action", (_event, action) => {
 
 ipcMain.handle("openui:gateway-start", () => startGateway());
 ipcMain.handle("openui:gateway-stop", () => stopGateway());
-ipcMain.handle("openui:gateway-status", () => gatewayHealth());
+ipcMain.handle("openui:gateway-status", () => (gatewayState.ready ? gatewayState : gatewayHealth()));
 
 ipcMain.handle("openui:models-status", async () => {
   try {

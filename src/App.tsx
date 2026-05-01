@@ -392,8 +392,8 @@ function App() {
             </pre>
           ) : null}
           <div className="debug-log">
-            {entries.map((entry) => (
-              <p key={`${entry.at}-${entry.message}`}>
+            {entries.map((entry, index) => (
+              <p key={`${entry.at}-${index}`}>
                 <time>{new Date(entry.at).toLocaleTimeString()}</time>
                 {entry.message}
               </p>
@@ -605,6 +605,7 @@ function getModelSummary(result: OpenUiResult | null) {
   const model = readString(data?.defaultModel) ?? readString(data?.resolvedDefault) ?? "unknown";
   const auth = asRecord(data?.auth);
   const missingProviders = readStringArray(auth?.missingProvidersInUse);
+  const unusableProfiles = readRecordArray(auth?.unusableProfiles);
   const providers = Array.isArray(auth?.providers) ? auth.providers : [];
   const missingAuth = missingProviders.length > 0;
 
@@ -628,6 +629,17 @@ function getModelSummary(result: OpenUiResult | null) {
     return {
       auth: `${missingProviders.join(", ")} auth missing`,
       missingAuth,
+      model,
+    };
+  }
+
+  if (unusableProfiles.length > 0) {
+    const cooldownMs = readNumber(unusableProfiles[0]?.remainingMs);
+    const cooldown = cooldownMs ? ` cooldown ${Math.ceil(cooldownMs / 1000)}s` : "";
+
+    return {
+      auth: `auth needs attention${cooldown}`,
+      missingAuth: true,
       model,
     };
   }
@@ -657,6 +669,18 @@ function readStringArray(value: unknown): string[] {
   }
 
   return value.filter((item): item is string => typeof item === "string");
+}
+
+function readRecordArray(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is Record<string, unknown> => Boolean(asRecord(item)));
+}
+
+function readNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
 function createId() {
