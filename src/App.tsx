@@ -76,9 +76,21 @@ function App() {
         appendDebug(error.message);
       });
 
+    const gatewayPoll = window.setInterval(() => {
+      desktop.gateway
+        .status()
+        .then((payload) => {
+          setGateway(payload);
+        })
+        .catch((error: Error) => {
+          appendDebug(error.message);
+        });
+    }, 1500);
+
     refreshModelStatus(desktop);
 
     return () => {
+      window.clearInterval(gatewayPoll);
       removeLogListener();
       removeStatusListener();
       removeAuthLogListener();

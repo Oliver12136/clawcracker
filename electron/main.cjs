@@ -359,6 +359,22 @@ async function gatewayHealth(timeoutMs = 5000) {
   return gatewayState;
 }
 
+async function getGatewayStatus() {
+  if (gatewayState.ready) {
+    return gatewayState;
+  }
+
+  if (gatewayProcess) {
+    if (await areGatewayPortsOpen()) {
+      markGatewayReady("Gateway ready");
+    }
+
+    return gatewayState;
+  }
+
+  return gatewayHealth();
+}
+
 async function startGateway() {
   if (gatewayStartPromise) {
     return gatewayStartPromise;
@@ -552,6 +568,11 @@ async function waitForGatewayReady(maxWaitMs = 30000) {
       return last;
     }
 
+    if (await areGatewayPortsOpen()) {
+      markGatewayReady("Gateway ready");
+      return gatewayState;
+    }
+
     emit("openui:gateway-status", {
       ...gatewayState,
       running: Boolean(gatewayProcess),
@@ -570,14 +591,27 @@ function noteGatewayReady(text) {
     return;
   }
 
+  markGatewayReady("Gateway ready");
+}
+
+function markGatewayReady(message) {
   gatewayState = {
     ...gatewayState,
     running: true,
     starting: false,
     ready: true,
-    message: "Gateway ready",
+    message,
   };
   emit("openui:gateway-status", gatewayState);
+}
+
+async function areGatewayPortsOpen() {
+  const [gatewayPort, browserPort] = await Promise.all([
+    isTcpPortOpen("127.0.0.1", 18789, 250),
+    isTcpPortOpen("127.0.0.1", 18791, 250),
+  ]);
+
+  return gatewayPort && browserPort;
 }
 
 function isTcpPortOpen(host, port, timeoutMs = 300) {
@@ -828,7 +862,7 @@ ipcMain.handle("openui:window-action", (_event, action) => {
 
 ipcMain.handle("openui:gateway-start", () => startGateway());
 ipcMain.handle("openui:gateway-stop", () => stopGateway());
-ipcMain.handle("openui:gateway-status", () => (gatewayState.ready ? gatewayState : gatewayHealth()));
+ipcMain.handle("openui:gateway-status", () => getGatewayStatus());
 
 ipcMain.handle("openui:models-status", async () => {
   try {
